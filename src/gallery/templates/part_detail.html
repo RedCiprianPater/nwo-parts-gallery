@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}{{ part.name }} — NWO Parts Gallery{% endblock %}
+
+{% block head %}
+<style>
+  .back { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--green); text-decoration: none; display: inline-block; margin-bottom: 32px; }
+  .back:hover { text-decoration: underline; }
+  .detail-grid { display: grid; grid-template-columns: 480px 1fr; gap: 48px; align-items: start; }
+  .preview { border: 2px solid var(--ink); background: var(--green-soft); aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .preview img { width: 100%; height: 100%; object-fit: cover; }
+  .preview-placeholder { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); }
+  .detail-header { margin-bottom: 24px; }
+  .detail-category { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--green); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 10px; }
+  .detail-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(28px, 4vw, 48px); line-height: 1; letter-spacing: -0.03em; margin-bottom: 16px; }
+  .detail-desc { font-size: 15px; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
+  .download-btn {
+    display: inline-block; padding: 14px 32px; background: var(--green-bright);
+    border: 2px solid var(--ink); font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em;
+    text-decoration: none; color: var(--ink); margin-bottom: 12px;
+  }
+  .download-btn:hover { background: var(--green); color: white; }
+  .copy-btn {
+    display: inline-block; padding: 10px 20px; border: 1px solid var(--ink);
+    background: white; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    cursor: pointer; margin-left: 8px;
+  }
+  .copy-btn:hover { background: var(--green-soft); }
+  .spec-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+  .spec-table tr { border-bottom: 1px dashed rgba(13,61,31,0.15); }
+  .spec-table td { padding: 10px 0; font-size: 13px; }
+  .spec-table td:first-child { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; width: 160px; }
+  .spec-table td:last-child { font-weight: 500; }
+  .section-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--green); text-transform: uppercase; letter-spacing: 0.12em; margin: 32px 0 16px; }
+  .val-block { border-left: 3px solid; padding: 16px 20px; margin-top: 16px; font-size: 13px; line-height: 1.6; }
+  .val-block.pass { border-color: var(--green); background: #f0faf4; }
+  .val-block.fail { border-color: var(--danger); background: #fff0f0; }
+  .val-block.unknown { border-color: #ccc; background: #fafafa; }
+  .provenance { border: 1px solid var(--ink); padding: 20px; margin-top: 32px; background: var(--green-soft); }
+  .code-block { background: #0a1f0f; color: #00d65a; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; overflow-x: auto; margin-top: 8px; }
+  .version-list { list-style: none; }
+  .version-list li { padding: 8px 0; border-bottom: 1px dashed rgba(13,61,31,0.15); display: flex; justify-content: space-between; font-size: 13px; }
+  .version-list li a { color: var(--green); text-decoration: none; }
+  .version-list li a:hover { text-decoration: underline; }
+  .tags-row { margin: 16px 0; }
+  @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } main { padding: 20px; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/gallery" class="back">← Back to gallery</a>
+
+<div class="detail-grid">
+  <!-- Preview -->
+  <div>
+    <div class="preview">
+      {% if part.thumbnail_url %}
+      <img src="{{ part.thumbnail_url }}" alt="{{ part.name }}">
+      {% else %}
+      <div class="preview-placeholder">// NO PREVIEW AVAILABLE</div>
+      {% endif %}
+    </div>
+
+    <!-- Versions -->
+    {% if versions and versions | length > 1 %}
+    <div class="section-title">// Versions</div>
+    <ul class="version-list">
+      {% for v in versions %}
+      <li>
+        <a href="/gallery/{{ v.id }}">{{ v.name }} v{{ v.version }}</a>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);">
+          {{ v.created_at.strftime('%Y-%m-%d') }} {% if v.id == part.id %}· current{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+
+  <!-- Details -->
+  <div>
+    <div class="detail-header">
+      <div class="detail-category">
+        {{ part.category | replace('_',' ') | upper }}
+        {% if part.body_zone %} · {{ part.body_zone | upper }}{% endif %}
+        · v{{ part.version }}
+      </div>
+      <div class="detail-name">{{ part.name }}</div>
+      {% if part.description %}
+      <div class="detail-desc">{{ part.description }}</div>
+      {% endif %}
+
+      <div class="tags-row">
+        {% for tag in part.tags %}
+        <span class="tag">{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Download -->
+    <a href="/parts/{{ part.id }}/file" class="download-btn">
+      ↓ Download {{ part.file_format | upper }}
+    </a>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ api_base }}/parts/{{ part.id }}/file'); this.textContent='Copied!'">Copy URL</button>
+
+    <!-- Specs -->
+    <div class="section-title">// Print specifications</div>
+    <table class="spec-table">
+      <tr><td>Format</td><td>{{ part.file_format | upper }} · {{ (part.file_size_bytes / 1024) | round(1) }} KB</td></tr>
+      <tr><td>Materials</td><td>{{ part.material_hints | join(', ') or '—' }}</td></tr>
+      <tr><td>Infill</td><td>{{ part.infill_pct ~ '%' if part.infill_pct else '—' }}</td></tr>
+      <tr><td>Layer height</td><td>{{ part.layer_height_mm ~ ' mm' if part.layer_height_mm else '—' }}</td></tr>
+      <tr><td>Supports</td><td>{{ 'Required' if part.supports_required else 'Not required' }}</td></tr>
+      <tr><td>Connector</td><td>{{ part.connector_standard or '—' }}</td></tr>
+      <tr><td>Tolerance</td><td>{{ part.tolerance_class or '—' }}</td></tr>
+      {% if part.bounding_box_mm %}
+      <tr><td>Bounding box</td><td>{{ part.bounding_box_mm | map('round', 1) | join(' × ') }} mm</td></tr>
+      {% endif %}
+      {% if part.mesh_vertices %}
+      <tr><td>Mesh</td><td>{{ '{:,}'.format(part.mesh_vertices) }} vertices · {{ '{:,}'.format(part.mesh_faces) }} faces</td></tr>
+      {% endif %}
+      <tr><td>License</td><td>{{ part.license }}</td></tr>
+      <tr><td>Downloads</td><td>{{ part.download_count }}</td></tr>
+      <tr><td>Published</td><td>{{ part.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</td></tr>
+      <tr><td>Author</td><td><a href="/gallery?agent_id={{ part.agent_id }}" style="color:var(--green);">{{ agent.name if agent else part.agent_id }}</a></td></tr>
+    </table>
+
+    <!-- Validation -->
+    <div class="section-title">// Validation report</div>
+    {% if part.validation_passed == true %}
+    <div class="val-block pass">
+      ✓ Mesh passed automated validation — manifold, wall thickness within spec, overhang within limits.
+      {% if part.validation_report and part.validation_report.overhang and part.validation_report.overhang.needs_supports %}
+      <br><strong>Note:</strong> Supports recommended (max overhang {{ part.validation_report.overhang.max_deg | round(1) }}°).
+      {% endif %}
+    </div>
+    {% elif part.validation_passed == false %}
+    <div class="val-block fail">
+      ⚠ Validation flagged issues. Check the full report before printing.
+      {% if part.validation_report and part.validation_report.warnings %}
+      <ul style="margin-top:8px; padding-left:16px;">
+        {% for w in part.validation_report.warnings[:5] %}
+        <li>{{ w }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="val-block unknown">— No validation data available for this part.</div>
+    {% endif %}
+
+    <!-- Provenance -->
+    {% if part.generator or part.llm_provider %}
+    <div class="section-title">// Generation provenance</div>
+    <div class="provenance">
+      <table class="spec-table">
+        {% if part.generator %}<tr><td>Generator</td><td>{{ part.generator }}</td></tr>{% endif %}
+        {% if part.llm_provider %}<tr><td>LLM provider</td><td>{{ part.llm_provider }}</td></tr>{% endif %}
+        {% if part.llm_model %}<tr><td>Model</td><td>{{ part.llm_model }}</td></tr>{% endif %}
+      </table>
+      {% if part.source_prompt %}
+      <div style="margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);">// SOURCE PROMPT</div>
+      <div class="code-block">{{ part.source_prompt }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Agent API usage -->
+    <div class="section-title">// Use in your agent</div>
+    <div class="code-block">
+# Download via NWO API
+curl "{{ api_base }}/parts/{{ part.id }}/file" -o {{ part.slug }}.{{ part.file_format }}
+
+# Or fetch metadata
+curl "{{ api_base }}/parts/{{ part.id }}"
+    </div>
+  </div>
+</div>
+{% endblock %}
